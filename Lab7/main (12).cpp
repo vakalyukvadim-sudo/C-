@@ -1,19 +1,17 @@
 #include <iostream>
-#include <memory>    // Для unique_ptr
-#include <stdexcept> // Для обробки помилок
+#include <memory>
+#include <stdexcept>
+#include <string>
 
 using namespace std;
 
-// ПУНКТ 3: Окрема структура Node (Вузол)
 template <typename T>
 struct Node {
     T data;
     unique_ptr<Node<T>> next;
-
     Node(T val) : data(val), next(nullptr) {}
 };
 
-// ПУНКТ 1, 4, 5: Клас для роботи із однозв'язним списком
 template <typename T>
 class SinglyLinkedList {
 private:
@@ -23,27 +21,74 @@ private:
 public:
     SinglyLinkedList() : head(nullptr), count(0) {}
 
-    // f. Перевірка на порожнечу
-    bool isEmpty() const {
-        return head == nullptr;
-    }
+    bool isEmpty() const { return head == nullptr; }
+    size_t size() const { return count; }
 
-    // e. Перевірка розміру
-    size_t size() const {
-        return count;
-    }
-
-    // a. Додавання на початок списку
     void pushFront(T val) {
-        // Замість make_unique використовуємо явне створення для сумісності з C++11
         unique_ptr<Node<T>> newNode(new Node<T>(val));
-        
         newNode->next = move(head);
         head = move(newNode);
         count++;
     }
 
-    // h. Виведення списку на екран (cout)
+    // --- НОВІ МЕТОДИ ДЛЯ ДРУГОГО КОМІТУ ---
+
+    // 6.a Додавання в кінець
+    void pushBack(T val) {
+        if (isEmpty()) {
+            pushFront(val);
+            return;
+        }
+        Node<T>* temp = head.get();
+        while (temp->next) {
+            temp = temp->next.get();
+        }
+        temp->next = unique_ptr<Node<T>>(new Node<T>(val));
+        count++;
+    }
+
+    // 6.b Вилучення першого
+    void popFront() {
+        if (isEmpty()) throw runtime_error("Список порожній!");
+        head = move(head->next);
+        count--;
+    }
+
+    // 6.b Вилучення останнього
+    void popBack() {
+        if (isEmpty()) throw runtime_error("Список порожній!");
+        if (count == 1) {
+            head.reset();
+        } else {
+            Node<T>* temp = head.get();
+            while (temp->next->next) {
+                temp = temp->next.get();
+            }
+            temp->next.reset();
+        }
+        count--;
+    }
+
+    // 6.c Доступ за індексом
+    T& operator[](size_t index) {
+        if (index >= count) throw out_of_range("Індекс поза межами списку!");
+        Node<T>* temp = head.get();
+        for (size_t i = 0; i < index; ++i) {
+            temp = temp->next.get();
+        }
+        return temp->data;
+    }
+
+    // 6.g Пошук елемента
+    int find(T val) {
+        Node<T>* temp = head.get();
+        for (size_t i = 0; i < count; ++i) {
+            if (temp->data == val) return i;
+            temp = temp->next.get();
+        }
+        return -1;
+    }
+
     void print() const {
         Node<T>* temp = head.get();
         while (temp) {
@@ -57,12 +102,20 @@ public:
 int main() {
     try {
         SinglyLinkedList<int> list;
-        list.pushFront(10);
-        list.pushFront(20);
+        
+        cout << "Додаємо 10, 20 в кінець, 5 на початок:" << endl;
+        list.pushBack(10);
+        list.pushBack(20);
+        list.pushFront(5);
+        list.print(); // Очікуємо: [5] -> [10] -> [20]
 
-        cout << "Перший запуск списку (C++11 compatible):" << endl;
+        cout << "Елемент за індексом 1: " << list[1] << endl;
+        cout << "Індекс числа 20: " << list.find(20) << endl;
+
+        cout << "Видаляємо перший та останній:" << endl;
+        list.popFront();
+        list.popBack();
         list.print();
-        cout << "Розмір: " << list.size() << endl;
 
     } catch (const exception& e) {
         cerr << "Помилка: " << e.what() << endl;
